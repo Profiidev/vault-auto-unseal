@@ -5,7 +5,7 @@ on:
     branches:
       - main
     tags:
-      - "vault-auto-unseal-*"
+      - "v*.*.*"
   pull_request:
 
 env:
