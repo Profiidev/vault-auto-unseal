@@ -1,28 +1,32 @@
+ARG TARGET=x86_64-unknown-linux-gnu
+ARG RUSTFLAGS="-C target-feature=+crt-static"
 ARG BIN=vault-auto-unseal
 
-FROM ghcr.io/profiidev/images/rust-musl-builder:main AS planner
+FROM ghcr.io/profiidev/images/rust-gnu-builder:main AS planner
 
 ARG BIN
-ENV BIN=$BIN
+ARG TARGET
+ARG RUSTFLAGS
 
-COPY apps/vault-auto-unseal/Cargo.toml ./Cargo.lock ./
+COPY ./Cargo.toml ./Cargo.lock ./
 
 RUN cargo chef prepare --recipe-path recipe.json --bin $BIN
 
-FROM ghcr.io/profiidev/images/rust-musl-builder:main AS builder
+FROM ghcr.io/profiidev/images/rust-gnu-builder:main AS builder
 
 ARG BIN
-ENV BIN=$BIN
+ARG TARGET
+ARG RUSTFLAGS
 
 COPY --from=planner /app/recipe.json .
 
-RUN cargo chef cook --release
+RUN cargo chef cook --release --target $TARGET
 
-COPY apps/vault-auto-unseal/src ./src
-COPY apps/vault-auto-unseal/Cargo.toml ./Cargo.lock ./
+COPY ./src ./src
+COPY ./Cargo.toml ./Cargo.lock ./
 
-RUN cargo build --release --bin $BIN
-RUN mv ./target/x86_64-unknown-linux-musl/release/$BIN ./app
+RUN cargo build --release --target $TARGET --bin $BIN
+RUN mv ./target/$TARGET/release/$BIN ./app
 
 FROM alpine
 
