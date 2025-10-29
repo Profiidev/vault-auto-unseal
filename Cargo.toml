@@ -1,0 +1,14 @@
+[package]
+name = "vault-auto-unseal"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.100"
+serde = { version = "1.0.228", features = ["derive"] }
+signal-hook = "0.3.18"
+ureq = { version = "3.1.2", features = ["json"] }
+
+[[bin]]
+name = "vault-auto-unseal"
+path = "src/main.rs"
