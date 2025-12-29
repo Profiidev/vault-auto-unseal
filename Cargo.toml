@@ -6,8 +6,8 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.100"
 serde = { version = "1.0.228", features = ["derive"] }
-signal-hook = "0.3.18"
-ureq = { version = "3.1.2", features = ["json"] }
+signal-hook = "0.4.1"
+ureq = { version = "3.1.4", features = ["json"] }
 
 [[bin]]
 name = "vault-auto-unseal"
