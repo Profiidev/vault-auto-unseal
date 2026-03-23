@@ -7,7 +7,7 @@ edition = "2024"
 anyhow = "1.0.102"
 serde = { version = "1.0.228", features = ["derive"] }
 signal-hook = "0.4.3"
-ureq = { version = "3.2.0", features = ["json"] }
+ureq = { version = "3.3.0", features = ["json"] }
 
 [[bin]]
 name = "vault-auto-unseal"
