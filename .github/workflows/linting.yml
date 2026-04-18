@@ -10,9 +10,12 @@ jobs:
       checks: write
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3
+        id: app-token
         with:
-          token: ${{ secrets.PERSONAL_TOKEN }}
+          client-id: ${{ secrets.COMMIT_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.COMMIT_BOT_PRIVATE_KEY }}
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy,rustfmt
@@ -30,3 +33,5 @@ jobs:
           rustfmt: true
           clippy: true
           auto_fix: true
+          git_sign_commits: true
+          github_token: ${{ steps.app-token.outputs.token }}
