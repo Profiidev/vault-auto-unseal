@@ -105,7 +105,7 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - ${{ github.repository }}/vault_auto_unseal
+          - ${{ github.event.repository.name }}/vault_auto_unseal
 
     steps:
       - uses: actions/delete-package-versions@4dbb860504f6d0cde296a192842138c03915746a # v5
