@@ -98,7 +98,7 @@ jobs:
       packages: write
 
     needs:
-      - merge
+      - build
     if: github.event_name != 'pull_request'
 
     strategy:
