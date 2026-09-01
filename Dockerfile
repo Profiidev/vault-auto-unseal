@@ -2,7 +2,7 @@ ARG TARGET=x86_64-unknown-linux-gnu
 ARG RUSTFLAGS="-C target-feature=+crt-static"
 ARG BIN=vault-auto-unseal
 
-FROM ghcr.io/profiidev/images/rust-gnu-builder:main@sha256:bd1ae1e4cf5ba1b9225619dec7b7ad4e040ed742f5898c6e24ad3a298b8fbe3f AS planner
+FROM ghcr.io/profiidev/images/rust-gnu-builder:main@sha256:ff57874d1ac77b2bde727c89e113ac21eb6b001f77c859fed6b31f008a1acfd8 AS planner
 
 ARG BIN
 ARG TARGET
@@ -12,7 +12,7 @@ COPY ./Cargo.toml ./Cargo.lock ./
 
 RUN cargo chef prepare --recipe-path recipe.json --bin $BIN
 
-FROM ghcr.io/profiidev/images/rust-gnu-builder:main@sha256:bd1ae1e4cf5ba1b9225619dec7b7ad4e040ed742f5898c6e24ad3a298b8fbe3f AS builder
+FROM ghcr.io/profiidev/images/rust-gnu-builder:main@sha256:ff57874d1ac77b2bde727c89e113ac21eb6b001f77c859fed6b31f008a1acfd8 AS builder
 
 ARG BIN
 ARG TARGET
