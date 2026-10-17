@@ -112,3 +112,4 @@ jobs:
         with:
           package: ${{ matrix.package }}
           delete-untagged: true
+          older-than: 1 day
