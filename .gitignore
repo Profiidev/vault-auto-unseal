@@ -10,4 +10,4 @@ target/
 devenv.local.nix
 
 # direnv
-.direnv
+.direnvlcov.info
