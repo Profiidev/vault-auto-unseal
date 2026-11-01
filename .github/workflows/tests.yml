@@ -20,7 +20,7 @@ jobs:
           shared-key: "test_cache"
 
       - uses: taiki-e/install-action@badb8c3638e0b773c6c17a6025c2306a8f1c4303 # nextest
-      - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: taiki-e/install-action@e891bb389537b38fb955c19833f884ca3188a61d # cargo-llvm-cov
 
       - name: Test
         run: cargo llvm-cov nextest --no-fail-fast --no-report
