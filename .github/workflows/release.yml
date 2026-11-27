@@ -14,19 +14,30 @@ env:
 jobs:
   build:
     name: Build VaultAutoUnseal
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
 
     permissions:
       contents: read
       packages: write
       attestations: write
       id-token: write
-      security-events: write
 
     strategy:
       matrix:
-        item: [{ df_path: ".", image: "${{ github.repository }}/vault_auto_unseal" }]
+        item: [{ df_path: ., image: "vault_auto_unseal" }]
+        platform: ["linux/amd64", "linux/arm64"]
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
     steps:
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+          FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.item.image }}"
+          echo "IMAGE=$(echo $FULL_IMAGE_NAME | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -46,35 +57,103 @@ jobs:
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
-          images: ${{ env.REGISTRY }}/${{ matrix.item.image }}
+          images: ${{ env.IMAGE }}
 
       - name: Build and push
-        id: push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        id: push
         with:
+          platforms: ${{ matrix.platform }}
           context: ./
           file: ${{ matrix.item.df_path }}/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          load: ${{ github.event_name == 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ env.IMAGE }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.item.image }}-${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.item.image }}-${{ env.PLATFORM_PAIR }}
+          outputs: type=image${{ github.event_name != 'pull_request' && ',push=true,push-by-digest=true,name-canonical=true' || '' }}
+
+      - name: Export digest
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p ${{ runner.temp }}/digests/${{ matrix.item.image }}
+          digest="${{ steps.push.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${{ matrix.item.image }}/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: github.event_name != 'pull_request'
+        with:
+          name: digests-${{ matrix.item.image }}-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/digests/${{ matrix.item.image }}/*
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
         if: github.event_name != 'pull_request'
         with:
-          subject-name: ${{ env.REGISTRY }}/${{ matrix.item.image }}
+          subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+
+  merge:
+    name: Merge Manifests
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        item: [{ image: "vault_auto_unseal" }]
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Prepare
+        run: |
+          FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.item.image }}"
+          echo "IMAGE=$(echo $FULL_IMAGE_NAME | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+      - name: Download digests
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          path: ${{ runner.temp }}/digests/${{ matrix.item.image }}
+          pattern: digests-${{ matrix.item.image }}-*
+          merge-multiple: true
+
+      - name: Login to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
+        with:
+          images: ${{ env.IMAGE }}
+
+      - name: Create and push manifest list
+        working-directory: ${{ runner.temp }}/digests/${{ matrix.item.image }}
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+                     $(printf '${{ env.IMAGE }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.IMAGE }}:${{ steps.meta.outputs.version }}
 
   trigger:
     permissions:
       id-token: write
       contents: read
     runs-on: ubuntu-latest
-    needs: build
+    needs:
+      - merge
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: profiidev/gluon@d715c4a8bd804db764307ad041e73c1c60ec7382 # v0
@@ -99,7 +178,7 @@ jobs:
       packages: write
 
     needs:
-      - build
+      - merge
     if: github.event_name != 'pull_request'
 
     strategy:
